@@ -19,7 +19,6 @@ class CloudLabAgent:
 
         self.ssh_clients_ = {}
         self.unconnected_nodes_ = []
-        self.lock_ = threading.Lock()
 
         if "ed25519" in self.account_ssh_key_filename_:
             key = Ed25519Key.from_private_key_file(self.account_ssh_key_filename_, password=self.password_)
