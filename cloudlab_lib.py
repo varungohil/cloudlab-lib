@@ -131,6 +131,10 @@ class CloudLabAgent:
         sudo apt-get install -y htop powercap-utils python3 python3-pip linux-tools-$(uname -r) linux-cloud-tools-$(uname -r) git libssl-dev libz-dev luarocks tcpdump
         pip3 install aiohttp asyncio pandas numpy scikit-learn matplotlib psutil
         sudo luarocks install luasocket
+        yes | sudo apt install python3-locust
+        pip install locust-plugins
+        pip install locust-swarm
+
         '''
         if node == "all":
             threads = {}
@@ -304,3 +308,35 @@ class CloudLabAgent:
         """
         cmd = f"sudo cpupower -c {cpus} frequency-set -f {frequency}"
         return self.run(node ,cmd)
+
+    def setup_deathstarbench(self, node, user, location="~", branch="main", commit=""):
+        if commit == "":
+            cmd = f'''
+                cd {location}
+                git clone https://github.com/{user}/DeathStarBench.git --recurse-submodules
+                cd DeathStarBench
+                git checkout {branch}
+                echo export DSB_ROOT=`pwd` >> ~/.bashrc
+                source ~/.bashrc
+                pip3 install asyncio aiohttp
+                sudo apt install -y libssl-dev libz-dev luarocks
+                sudo luarocks install luasocket
+                cd wrk2
+                make
+            '''
+        else:
+            cmd = f'''
+                cd {location}
+                git clone https://github.com/{user}/DeathStarBench.git --recurse-submodules
+                cd DeathStarBench
+                git checkout {branch}
+                git checkout {commit}
+                echo export DSB_ROOT=`pwd` >> ~/.bashrc
+                source ~/.bashrc
+                pip3 install asyncio aiohttp
+                sudo apt install -y libssl-dev libz-dev luarocks
+                sudo luarocks install luasocket
+                cd wrk2
+                make
+            '''            
+        return self.run(node, cmd)
