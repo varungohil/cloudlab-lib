@@ -1,0 +1,17 @@
+{
+    "nodes": [
+        "node-0",
+        "node-1"
+        // ... Add more nodes as needed
+    ],
+    "master_node": "node-0", // The node that will be used as the master node in cluster
+    "ssh_suffix": "", // the part that follows "node-x" in output of hostname cmd 
+    // when run on cloudlab machine.Output of hostname cmd is node-x.suffix
+    "account": {
+	    //Replace with details of your CloudLab account
+        "username": "", //Your CloudLab username
+        "ssh_key_filename": "", //Absolute path to your ssh key
+        "port": 22,
+        "password": "" //Passphrase for your ssh key
+    }
+}
