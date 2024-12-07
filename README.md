@@ -6,7 +6,7 @@ A Python library for managing and automating experiments on CloudLab nodes.
 
 ```bash
 # Clone repository
-git clone https://github.com/varungohil/cloudlab-lib.git
+git clone https://github.com/varungohil/cloudlab_lib.git
 
 # Install dependencies
 pip install -r requirements.txt
