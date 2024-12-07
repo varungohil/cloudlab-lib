@@ -310,6 +310,19 @@ class CloudLabAgent:
         return self.run(node ,cmd)
 
     def setup_deathstarbench(self, node, user, location="~", branch="main", commit=""):
+        """
+        Sets up DeathStarBench benchmark suite on specified node.
+        
+        Args:
+            node (str): Node identifier to install on
+            user (str): GitHub username/org containing DeathStarBench fork
+            location (str): Directory to clone into (default: "~")
+            branch (str): Git branch to checkout (default: "main") 
+            commit (str): Optional specific commit to checkout
+            
+        Returns:
+            tuple: Result of run() command (stdout, stderr, exit_status)
+        """
         if commit == "":
             cmd = f'''
                 cd {location}
@@ -340,3 +353,65 @@ class CloudLabAgent:
                 make
             '''            
         return self.run(node, cmd)
+    
+    def run_wrk(self, node, wrk_params, wrk_path="default"):
+        """
+        Run wrk2 HTTP benchmarking tool on specified node.
+        
+        Args:
+            node (str): Node identifier to run wrk on
+            wrk_params (dict): Parameters for wrk2 benchmark run
+            wrk_path (str): Path to wrk2 executable (default: DeathStarBench/wrk2)
+            
+        Example wrk_params:
+            {
+                "dist": "exp",           # Request inter-arrival timedistribution (exp/const/normal)
+                "threads": "4",          # Number of threads
+                "connections": "100",    # Number of connections
+                "duration": "30s",       # Duration of test
+                "rate": "1000",         # Target request rate
+                "timeout": "5s",        # Request timeout
+                "script": "script.lua",  # Lua script path
+                "url": "http://localhost:8080", # Target URL
+                "extra_params": ""       # Additional parameters
+            }
+            
+        Returns:
+            tuple: Result of run() command (stdout, stderr, exit_status)
+        """
+        if wrk_path == "default":
+            wrk_path = f"/home/{self.account_username_}/DeathStarBench/wrk2"
+        cmd = f"{wrk_path}/wrk -D {wrk_params['dist']} -t {wrk_params['threads']} -c {wrk_params['connections']} -d{wrk_params['duration']} -R{wrk_params['rate']} -T{wrk_params['timeout']} -s {wrk_path}/{wrk_params['script']} {wrk_params['url']} {wrk_params['extra_params']}" 
+        print(cmd)
+        return self.run(node, cmd)
+    
+    def run_locust(self, node, locust_params):
+        """
+        Run Locust load testing tool on specified node.
+        
+        Args:
+            node (str): Node identifier to run Locust on
+            locust_params (dict): Parameters for Locust test run
+            
+        Example locust_params:
+            {
+                "script": "locustfile.py",     # Locust test script path
+                "url": "http://localhost:8080", # Target URL/host
+                "tags": "tag1,tag2",           # Test tags to run
+                "processes": "4",              # Number of worker processes
+                "wait_distrib": "constant(1)",  # Wait time distribution
+                "throughput_per_user": "10",   # Target RPS per user
+                "max_users": "100",           # Max number of users
+                "user_spawn_rate": "10",      # Users to spawn per second
+                "duration": "5m",              # Test duration
+                "output_csv" : "random",       # Name of output csv file (.csv is automatically added)
+                "extra_params": ""       # Additional parameters
+            }
+            
+        Returns:
+            tuple: Result of run() command (stdout, stderr, exit_status)
+        """
+        cmd = f"locust --headless -f {locust_params['script']} -H {locust_params['url']} --tag {locust_params['tags']} --processes {locust_params['processes']} -w {locust_params['wait_distrib']} -tu {locust_params['throughput_per_user']} -u {locust_params['max_users']} -r {locust_params['user_spawn_rate']} -t{locust_params['duration']} --csv {locust_params['output_csv']} {locust_params['extra_params']}" 
+        print(cmd)
+        return self.run(node, cmd)
+    
