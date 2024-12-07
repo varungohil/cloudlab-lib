@@ -3,7 +3,7 @@ import threading
 from paramiko import SSHClient, Ed25519Key, RSAKey, AutoAddPolicy
 #
 class CloudLabAgent:
-    def __init__(self, server_configs_json, with_ml_libs=False):
+    def __init__(self, server_configs_json):
         # Parse server configuration.
         with open(server_configs_json, 'r') as f:
             json_data = json.load(f)
