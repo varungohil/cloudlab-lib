@@ -292,7 +292,9 @@ class CloudLabAgent:
         stderrs = {}
         exit_statuses = {}
         stdout_init, stderr_init, exit_status_init = self.initialize_docker_swarm()
-        stdout_join, stderr_join, exit_status_join = self.join_workers_to_swarm(self.nodes_)
+        # Only pass non-master nodes to join_workers_to_swarm
+        worker_nodes = [node for node in self.nodes_ if node != self.master_node_]
+        stdout_join, stderr_join, exit_status_join = self.join_workers_to_swarm(worker_nodes)
         stdouts["init"] = stdout_init
         stderrs["init"] = stderr_init
         exit_statuses["init"] = exit_status_init
