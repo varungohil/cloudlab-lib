@@ -1,7 +1,21 @@
 import json
 import threading
+from threading import Thread
 from paramiko import SSHClient, Ed25519Key, RSAKey, AutoAddPolicy
-#
+
+class ThreadWithRetval(threading.Thread):
+    def __init__(self, target, args=()):
+        super().__init__(target=target, args=args)
+        self.result = None
+
+    def run(self):
+        self.result = self.target(*self.args)
+
+    def join(self, *args):
+        super().join(*args)
+        return self.result
+
+
 class CloudLabAgent:
     """A class to manage and run experiments on CloudLab nodes."""
     
@@ -48,7 +62,7 @@ class CloudLabAgent:
                 self.unconnected_nodes_.append(node)
             self.ssh_clients_[node] = ssh_client
 
-    def run(self, node, cmd, exit_on_err = False):
+    def run_on_node(self, node, cmd, exit_on_err = False):
         """
         Execute a command on a specified node via SSH.
         
@@ -72,6 +86,50 @@ class CloudLabAgent:
             if exit_on_err:
                 exit(1)
         return stdout_lines, stderr_lines, exit_status
+    
+    def concurrent_run(self, nodes, cmd, exit_on_err = False):
+        """
+        Execute a command concurrently across multiple nodes using threads.
+        
+        Args:
+            nodes (list): List of node identifiers to run command on
+            cmd (str): Command to execute on each node
+            exit_on_err (bool): Whether to exit program if command fails
+            
+        Returns:
+            dict: Dictionary mapping node identifiers to their command execution results
+                  Each result is a tuple of (stdout_lines, stderr_lines, exit_status)
+        """
+        threads = {}
+        results = {}
+        for node in nodes:
+            thread = ThreadWithRetval(target=self.run_on_node, args=(node, cmd, exit_on_err))
+            threads[node] = thread
+            thread.start()
+
+        for node in nodes:
+            results[node] = threads[node].join()
+
+        return results
+    
+    def run(self, nodes, cmd, exit_on_err = False):
+        """
+        Execute a command on one or multiple nodes.
+        
+        Args:
+            nodes (str|list): Target node(s) - can be "all", a list of nodes, or a single node
+            cmd (str): Command to execute
+            exit_on_err (bool): Whether to exit program if command fails
+            
+        Returns:
+            dict|tuple: Results from command execution
+        """
+        if nodes == "all":
+            return self.concurrent_run(self.nodes_, cmd, exit_on_err)
+        elif isinstance(nodes, list) and len(nodes) > 0 :
+            return self.concurrent_run(nodes, cmd, exit_on_err)
+        else:
+            return self.run_on_node(nodes, cmd, exit_on_err)
 
     def scp(self, node, local_path, remote_path, exit_on_err = False):
         """
@@ -101,7 +159,7 @@ class CloudLabAgent:
         ftp_client.get(remote_path, local_path)
         ftp_client.close()
 
-    def reboot(self, node):
+    def reboot(self, nodes):
         """
         Reboot the specified node.
         
@@ -114,9 +172,9 @@ class CloudLabAgent:
         cmd =  '''
         sudo reboot
         '''
-        return self.run(node, cmd)
+        return self.run(nodes, cmd)
             
-    def install_deps(self, node):
+    def install_deps(self, nodes):
         """
         Install system dependencies and Python packages on specified node(s).
         
@@ -136,20 +194,10 @@ class CloudLabAgent:
         pip install locust-swarm
 
         '''
-        if node == "all":
-            threads = {}
-            for node in self.nodes_:
-                thread = threading.Thread(target=self.run, args=(node, cmd, True))
-                threads[node] = thread
-                thread.start()
-                
-            for node in self.nodes_:
-                threads[node].join()
-        else:
-            return self.run(node, cmd)
+        return self.run(nodes, cmd)
 
 
-    def install_docker(self, node):
+    def install_docker(self, nodes):
         """
         Install Docker and related packages on specified node(s).
         
@@ -179,17 +227,7 @@ class CloudLabAgent:
 
         sudo chmod 666 /var/run/docker.sock
         '''
-        if node == "all":
-            threads = {}
-            for node in self.nodes_:
-                thread = threading.Thread(target=self.run, args=(node, cmd, True))
-                threads[node] = thread
-                thread.start()
-                
-            for node in self.nodes_:
-                threads[node].join()
-        else:
-            return self.run(node, cmd, exit_on_err = True)
+        return self.run(nodes, cmd, exit_on_err = True)
 
 
     def initialize_docker_swarm(self):
@@ -200,7 +238,7 @@ class CloudLabAgent:
             tuple: (stdout_lines, stderr_lines, exit_status) from swarm initialization
         """
         cmd = "sudo docker swarm init --advertise-addr `hostname -i`"
-        stdout, stderr , exit_status = self.run(self.master_node_, cmd, exit_on_err=True) 
+        stdout, stderr , exit_status = self.run_on_node(self.master_node_, cmd, exit_on_err=True) 
         worker_join_token = stdout[4].strip()
         print(f"Join token is '{worker_join_token}' ")
         self.worker_join_token_ = worker_join_token
@@ -222,7 +260,7 @@ class CloudLabAgent:
         exit_statuses = {}
         for node in nodes:
             print(f"Trying to join node {node} as worker to swarm")
-            stdout, stderr, exit_status = self.run(node, self.worker_join_token_)
+            stdout, stderr, exit_status = self.run_on_node(node, self.worker_join_token_)
             stdouts[node] = stdout
             stderrs[node] = stderr
             exit_statuses[node] = exit_status
@@ -241,7 +279,7 @@ class CloudLabAgent:
         cmd = '''
         sudo docker swarm leave -f
         '''
-        return self.run(node, cmd)
+        return self.run_on_node(node, cmd)
     
     def create_docker_swarm(self):
         """
@@ -274,13 +312,18 @@ class CloudLabAgent:
         stderrs = {}
         exit_statuses = {}
         for node in self.nodes_:
-            stdout, stderr, exit_status = self.leave_swarm(node)
-            stdouts[node] = stdout
-            stderrs[node] = stderr
-            exit_statuses[node] = exit_status
+            if node != self.master_node_:   
+                stdout, stderr, exit_status = self.leave_swarm(node)
+                stdouts[node] = stdout
+                stderrs[node] = stderr
+                exit_statuses[node] = exit_status
+        stdout, stderr, exit_status = self.leave_swarm(self.master_node_)
+        stdouts[self.master_node_] = stdout
+        stderrs[self.master_node_] = stderr
+        exit_statuses[self.master_node_] = exit_status
         return stdouts, stderrs, exit_statuses
 
-    def set_power_governor(self, node, governor):
+    def set_power_governor(self, nodes, governor):
         """
         Set CPU power governor on specified node.
         
@@ -292,9 +335,9 @@ class CloudLabAgent:
             tuple: Result of run() command
         """
         cmd = f"sudo cpupower frequency-set -g {governor}"
-        return self.run(node, cmd)
+        return self.run(nodes, cmd)
 
-    def set_frequency(self, node, cpus, frequency):
+    def set_frequency(self, nodes, cpus, frequency):
         """
         Set CPU frequency for specified cores on a node.
         
@@ -307,9 +350,9 @@ class CloudLabAgent:
             tuple: Result of run() command
         """
         cmd = f"sudo cpupower -c {cpus} frequency-set -f {frequency}"
-        return self.run(node ,cmd)
+        return self.run(nodes ,cmd)
 
-    def setup_deathstarbench(self, node, user, location="~", branch="main", commit=""):
+    def setup_deathstarbench(self, nodes, user, location="~", branch="main", commit=""):
         """
         Sets up DeathStarBench benchmark suite on specified node.
         
@@ -351,8 +394,8 @@ class CloudLabAgent:
                 sudo luarocks install luasocket
                 cd wrk2
                 make
-            '''            
-        return self.run(node, cmd)
+            ''' 
+        return self.run(nodes, cmd)
     
     def run_wrk(self, node, wrk_params, wrk_path="default"):
         """
@@ -383,7 +426,7 @@ class CloudLabAgent:
             wrk_path = f"/home/{self.account_username_}/DeathStarBench/wrk2"
         cmd = f"{wrk_path}/wrk -D {wrk_params['dist']} -t {wrk_params['threads']} -c {wrk_params['connections']} -d{wrk_params['duration']} -R{wrk_params['rate']} -T{wrk_params['timeout']} -s {wrk_path}/{wrk_params['script']} {wrk_params['url']} {wrk_params['extra_params']}" 
         print(cmd)
-        return self.run(node, cmd)
+        return self.run_on_node(node, cmd)
     
     def run_locust(self, node, locust_params):
         """
@@ -413,5 +456,5 @@ class CloudLabAgent:
         """
         cmd = f"locust --headless -f {locust_params['script']} -H {locust_params['url']} --tag {locust_params['tags']} --processes {locust_params['processes']} -w {locust_params['wait_distrib']} -tu {locust_params['throughput_per_user']} -u {locust_params['max_users']} -r {locust_params['user_spawn_rate']} -t{locust_params['duration']} --csv {locust_params['output_csv']} {locust_params['extra_params']}" 
         print(cmd)
-        return self.run(node, cmd)
+        return self.run_on_node(node, cmd)
     
