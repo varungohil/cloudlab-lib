@@ -9,7 +9,7 @@ class ThreadWithRetval(threading.Thread):
         self.result = None
 
     def run(self):
-        self.result = self.target(*self.args)
+        self.result = self._target(*self._args)
 
     def join(self, *args):
         super().join(*args)
@@ -372,8 +372,10 @@ class CloudLabAgent:
                 git clone https://github.com/{user}/DeathStarBench.git --recurse-submodules
                 cd DeathStarBench
                 git checkout {branch}
-                echo export DSB_ROOT=`pwd` >> ~/.bashrc
-                source ~/.bashrc
+                # echo export DSB_ROOT=`pwd` >> ~/.bashrc
+                # echo "DSB_ROOT={location}/DeathStarBench" | sudo tee -a /etc/environment
+                # source ~/.bashrc
+                # source /etc/environment
                 pip3 install asyncio aiohttp
                 sudo apt install -y libssl-dev libz-dev luarocks
                 sudo luarocks install luasocket
