@@ -462,3 +462,21 @@ class CloudLabAgent:
         print(cmd)
         return self.run_on_node(node, cmd)
     
+
+    def turn_hyperthreading(self, node, option):
+        """
+        Enable or disable hyperthreading on the specified node.
+        
+        Args:
+            node (str): Node identifier to configure hyperthreading
+            option (str): 'on' to enable hyperthreading, 'off' to disable it
+            
+        Returns:
+            tuple: Result of run_on_node() command (stdout_lines, stderr_lines, exit_status)
+        """
+        if option not in ["on", "off"]:
+            print(f"{option} option not recognized!, Only options 'on' and 'off' are allowed")
+            return [],[],-1
+        cmd = f"sudo sh -c 'echo {option} > /sys/devices/system/cpu/smt/control'"
+        return self.run_on_node(node, cmd)
+    
