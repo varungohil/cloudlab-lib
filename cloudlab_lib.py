@@ -478,5 +478,5 @@ class CloudLabAgent:
             print(f"{option} option not recognized!, Only options 'on' and 'off' are allowed")
             return [],[],-1
         cmd = f"sudo sh -c 'echo {option} > /sys/devices/system/cpu/smt/control'"
-        return self.run_on_node(node, cmd)
+        return self.run(node, cmd)
     
