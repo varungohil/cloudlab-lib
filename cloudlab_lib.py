@@ -339,7 +339,7 @@ class CloudLabAgent:
         exit_statuses[self.master_node_] = exit_status
         return stdouts, stderrs, exit_statuses
 
-    def turn_intel_pstate_drive(self, nodes, option, exit_on_err = False):
+    def turn_intel_pstate_driver(self, nodes, option, exit_on_err = False):
         """
         Enable or disable Intel P-state driver on specified node.
         
