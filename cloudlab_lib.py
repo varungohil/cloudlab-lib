@@ -159,12 +159,13 @@ class CloudLabAgent:
         ftp_client.get(remote_path, local_path)
         ftp_client.close()
 
-    def reboot(self, nodes):
+    def reboot(self, nodes, exit_on_err = False):
         """
         Reboot the specified node.
         
         Args:
             node (str): Node identifier to reboot
+            exit_on_err (bool): Whether to exit program if command fails
             
         Returns:
             tuple: Result of run() command (stdout_lines, stderr_lines, exit_status)
@@ -172,14 +173,15 @@ class CloudLabAgent:
         cmd =  '''
         sudo reboot
         '''
-        return self.run(nodes, cmd)
+        return self.run(nodes, cmd, exit_on_err)
             
-    def install_deps(self, nodes):
+    def install_deps(self, nodes, exit_on_err = False):
         """
         Install system dependencies and Python packages on specified node(s).
         
         Args:
             node (str): Node identifier or 'all' to install on all nodes
+            exit_on_err (bool): Whether to exit program if command fails
             
         Returns:
             tuple: Result of run() command if single node, None if 'all'
@@ -194,15 +196,16 @@ class CloudLabAgent:
         pip install locust-swarm
 
         '''
-        return self.run(nodes, cmd)
+        return self.run(nodes, cmd, exit_on_err)
 
 
-    def install_docker(self, nodes):
+    def install_docker(self, nodes, exit_on_err=False):
         """
         Install Docker and related packages on specified node(s).
         
         Args:
             node (str): Node identifier or 'all' to install on all nodes
+            exit_on_err (bool): Whether to exit program if command fails
             
         Returns:
             tuple: Result of run() command if single node, None if 'all'
@@ -227,13 +230,16 @@ class CloudLabAgent:
 
         sudo chmod 666 /var/run/docker.sock
         '''
-        return self.run(nodes, cmd, exit_on_err = True)
+        return self.run(nodes, cmd, exit_on_err)
 
 
-    def initialize_docker_swarm(self):
+    def initialize_docker_swarm(self, exit_on_err = False):
         """
         Initialize a Docker swarm on the master node.
         
+        Args:
+            exit_on_err (bool): Whether to exit program if command fails
+            
         Returns:
             tuple: (stdout_lines, stderr_lines, exit_status) from swarm initialization
         """
@@ -245,12 +251,13 @@ class CloudLabAgent:
         return stdout, stderr, exit_status
 
 
-    def join_workers_to_swarm(self, nodes):
+    def join_workers_to_swarm(self, nodes, exit_on_err = False):
         """
         Join specified nodes to the Docker swarm as workers.
         
         Args:
             nodes (list): List of node identifiers to join as workers
+            exit_on_err (bool): Whether to exit program if command fails
             
         Returns:
             tuple: Dictionaries of (stdouts, stderrs, exit_statuses) keyed by node
@@ -266,12 +273,13 @@ class CloudLabAgent:
             exit_statuses[node] = exit_status
         return stdouts, stderrs, exit_statuses
 
-    def leave_swarm(self, node):
+    def leave_swarm(self, node, exit_on_err = False):
         """
         Remove specified node from Docker swarm.
         
         Args:
             node (str): Node identifier to remove from swarm
+            exit_on_err (bool): Whether to exit program if command fails
             
         Returns:
             tuple: Result of run() command
@@ -281,10 +289,13 @@ class CloudLabAgent:
         '''
         return self.run_on_node(node, cmd)
     
-    def create_docker_swarm(self):
+    def create_docker_swarm(self, exit_on_err = False):
         """
         Create a Docker swarm with current master node and join all workers.
         
+        Args:
+            exit_on_err (bool): Whether to exit program if command fails
+            
         Returns:
             tuple: Dictionaries containing results of initialization and join operations
         """
@@ -303,10 +314,13 @@ class CloudLabAgent:
         exit_statuses["join"] = exit_status_join
         return stdouts, stderrs, exit_statuses
     
-    def destroy_docker_swarm(self):
+    def destroy_docker_swarm(self, exit_on_err = False):
         """
         Remove all nodes from the Docker swarm.
         
+        Args:
+            exit_on_err (bool): Whether to exit program if command fails
+            
         Returns:
             tuple: Dictionaries of (stdouts, stderrs, exit_statuses) keyed by node
         """
@@ -325,13 +339,14 @@ class CloudLabAgent:
         exit_statuses[self.master_node_] = exit_status
         return stdouts, stderrs, exit_statuses
 
-    def turn_intel_pstate_drive(self, nodes, option):
+    def turn_intel_pstate_drive(self, nodes, option, exit_on_err = False):
         """
         Enable or disable Intel P-state driver on specified node.
         
         Args:
             node (str): Node identifier to configure P-state
             option (str): 'on' to enable P-state driver, 'off' to disable it
+            exit_on_err (bool): Whether to exit program if command fails
             
         Returns:
             Nothing. Reboots the machine after execxuting the command.
@@ -353,21 +368,22 @@ class CloudLabAgent:
         self.run(nodes, edit_grub_cmd, exit_on_err=True)
         self.reboot(nodes)
 
-    def set_power_governor(self, nodes, governor):
+    def set_power_governor(self, nodes, governor, exit_on_err = False):
         """
         Set CPU power governor on specified node.
         
         Args:
             node (str): Node identifier
             governor (str): Power governor setting to apply
+            exit_on_err (bool): Whether to exit program if command fails
             
         Returns:
             tuple: Result of run() command
         """
         cmd = f"sudo cpupower frequency-set -g {governor}"
-        return self.run(nodes, cmd)
+        return self.run(nodes, cmd, exit_on_err)
 
-    def set_frequency(self, nodes, cpus, frequency):
+    def set_frequency(self, nodes, cpus, frequency, exit_on_err = False):
         """
         Set CPU frequency for specified cores on a node.
         
@@ -375,14 +391,15 @@ class CloudLabAgent:
             node (str): Node identifier
             cpus (str): CPU cores to configure (e.g., "0-3" or "0,1,2,3")
             frequency (str): Frequency to set (e.g., "2.4GHz")
+            exit_on_err (bool): Whether to exit program if command fails
             
         Returns:
             tuple: Result of run() command
         """
         cmd = f"sudo cpupower -c {cpus} frequency-set -f {frequency}"
-        return self.run(nodes ,cmd)
+        return self.run(nodes ,cmd, exit_on_err)
 
-    def setup_deathstarbench(self, nodes, user, location="~", branch="main", commit=""):
+    def setup_deathstarbench(self, nodes, user, location="~", branch="main", commit="", exit_on_err = False):
         """
         Sets up DeathStarBench benchmark suite on specified node.
         
@@ -392,6 +409,7 @@ class CloudLabAgent:
             location (str): Directory to clone into (default: "~")
             branch (str): Git branch to checkout (default: "main") 
             commit (str): Optional specific commit to checkout
+            exit_on_err (bool): Whether to exit program if command fails
             
         Returns:
             tuple: Result of run() command (stdout, stderr, exit_status)
@@ -427,9 +445,9 @@ class CloudLabAgent:
                 cd wrk2
                 make
             ''' 
-        return self.run(nodes, cmd)
+        return self.run(nodes, cmd, exit_on_err)
     
-    def run_wrk(self, node, wrk_params, wrk_path="default"):
+    def run_wrk(self, node, wrk_params, wrk_path="default", exit_on_err = False):
         """
         Run wrk2 HTTP benchmarking tool on specified node.
         
@@ -437,6 +455,7 @@ class CloudLabAgent:
             node (str): Node identifier to run wrk on
             wrk_params (dict): Parameters for wrk2 benchmark run
             wrk_path (str): Path to wrk2 executable (default: DeathStarBench/wrk2)
+            exit_on_err (bool): Whether to exit program if command fails
             
         Example wrk_params:
             {
@@ -458,15 +477,16 @@ class CloudLabAgent:
             wrk_path = f"/home/{self.account_username_}/DeathStarBench/wrk2"
         cmd = f"{wrk_path}/wrk -D {wrk_params['dist']} -t {wrk_params['threads']} -c {wrk_params['connections']} -d{wrk_params['duration']} -R{wrk_params['rate']} -T{wrk_params['timeout']} -s {wrk_path}/{wrk_params['script']} {wrk_params['url']} {wrk_params['extra_params']}" 
         print(cmd)
-        return self.run_on_node(node, cmd)
+        return self.run_on_node(node, cmd, exit_on_err)
     
-    def run_locust(self, node, locust_params):
+    def run_locust(self, node, locust_params, exit_on_err = False):
         """
         Run Locust load testing tool on specified node.
         
         Args:
             node (str): Node identifier to run Locust on
             locust_params (dict): Parameters for Locust test run
+            exit_on_err (bool): Whether to exit program if command fails
             
         Example locust_params:
             {
@@ -488,16 +508,17 @@ class CloudLabAgent:
         """
         cmd = f"locust --headless -f {locust_params['script']} -H {locust_params['url']} --tag {locust_params['tags']} --processes {locust_params['processes']} -w {locust_params['wait_distrib']} -tu {locust_params['throughput_per_user']} -u {locust_params['max_users']} -r {locust_params['user_spawn_rate']} -t{locust_params['duration']} --csv {locust_params['output_csv']} {locust_params['extra_params']}" 
         print(cmd)
-        return self.run_on_node(node, cmd)
+        return self.run_on_node(node, cmd, exit_on_err)
     
 
-    def turn_hyperthreading(self, nodes, option):
+    def turn_hyperthreading(self, nodes, option, exit_on_err = False):
         """
         Enable or disable hyperthreading on the specified node.
         
         Args:
             node (str): Node identifier to configure hyperthreading
             option (str): 'on' to enable hyperthreading, 'off' to disable it
+            exit_on_err (bool): Whether to exit program if command fails
             
         Returns:
             Dictionary of (stdouts, stderrs, exit_statuses) keyed by node
@@ -506,5 +527,5 @@ class CloudLabAgent:
             print(f"{option} option not recognized!, Only options 'on' and 'off' are allowed")
             return [],[],-1
         cmd = f"sudo sh -c 'echo {option} > /sys/devices/system/cpu/smt/control'"
-        return self.run(nodes, cmd)
+        return self.run(nodes, cmd, exit_on_err)
     
