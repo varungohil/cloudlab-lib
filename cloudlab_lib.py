@@ -325,6 +325,34 @@ class CloudLabAgent:
         exit_statuses[self.master_node_] = exit_status
         return stdouts, stderrs, exit_statuses
 
+    def turn_intel_pstate_drive(self, nodes, option):
+        """
+        Enable or disable Intel P-state driver on specified node.
+        
+        Args:
+            node (str): Node identifier to configure P-state
+            option (str): 'on' to enable P-state driver, 'off' to disable it
+            
+        Returns:
+            Nothing. Reboots the machine after execxuting the command.
+        """
+        if option == "on":
+            edit_grub_cmd = '''
+            sudo sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="intel_pstate=disable"/GRUB_CMDLINE_LINUX_DEFAULT=""/g' /etc/default/grub
+            sudo grub-mkconfig -o /boot/grub/grub.cfg
+            '''
+        elif option == "off":
+            edit_grub_cmd = '''
+            sudo sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=""/GRUB_CMDLINE_LINUX_DEFAULT="intel_pstate=disable"/g' /etc/default/grub
+            sudo grub-mkconfig -o /boot/grub/grub.cfg
+            '''
+        else:
+            print(f"{option} option not recognized!, Only options 'on' and 'off' are allowed")
+            return [],[],-1
+
+        self.run(nodes, edit_grub_cmd, exit_on_err=True)
+        self.reboot(nodes)
+
     def set_power_governor(self, nodes, governor):
         """
         Set CPU power governor on specified node.
@@ -463,7 +491,7 @@ class CloudLabAgent:
         return self.run_on_node(node, cmd)
     
 
-    def turn_hyperthreading(self, node, option):
+    def turn_hyperthreading(self, nodes, option):
         """
         Enable or disable hyperthreading on the specified node.
         
@@ -472,11 +500,11 @@ class CloudLabAgent:
             option (str): 'on' to enable hyperthreading, 'off' to disable it
             
         Returns:
-            tuple: Result of run_on_node() command (stdout_lines, stderr_lines, exit_status)
+            Dictionary of (stdouts, stderrs, exit_statuses) keyed by node
         """
         if option not in ["on", "off"]:
             print(f"{option} option not recognized!, Only options 'on' and 'off' are allowed")
             return [],[],-1
         cmd = f"sudo sh -c 'echo {option} > /sys/devices/system/cpu/smt/control'"
-        return self.run(node, cmd)
+        return self.run(nodes, cmd)
     
