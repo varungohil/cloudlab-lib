@@ -550,3 +550,22 @@ class CloudLabAgent:
         cmd = f"sudo sh -c 'echo {option} > /sys/devices/system/cpu/smt/control'"
         return self.run(nodes, cmd, exit_on_err)
     
+    def enable_inter_node_ssh(self, nodes):
+        """
+        Enable SSH access between nodes by setting up SSH keys.
+        
+        Args:
+            nodes (str|list): Target node(s) to enable inter-node SSH access
+            
+        Returns:
+            dict|tuple: Results from command execution containing SSH key setup output
+        """
+        cmd = '''
+            #!/bin/sh
+            /usr/bin/geni-get key > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+            ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub
+            cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+            chmod 644 ~/.ssh/authorized_keys
+        '''
+        return self.run(nodes, cmd)
