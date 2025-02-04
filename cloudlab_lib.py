@@ -339,6 +339,26 @@ class CloudLabAgent:
         stderrs[self.master_node_] = stderr
         exit_statuses[self.master_node_] = exit_status
         return stdouts, stderrs, exit_statuses
+    
+    def add_docker_label(self, nodes, key, value, exit_on_err=False):
+        """
+        Add a Docker node label to specified nodes in the swarm.
+        
+        Args:
+            nodes (list): List of node identifiers to label
+            key (str): Label key to add
+            value (str): Label value to set
+            exit_on_err (bool): Whether to exit program if command fails
+            
+        Returns:
+            dict: Dictionary mapping node identifiers to their command execution results
+                  Each result is a tuple of (stdout_lines, stderr_lines, exit_status)
+        """
+        results = {}
+        for node in nodes:
+            cmd = f"docker node update --label-add {key}={value} {node}{self.ssh_suffix_}"
+            results[node] = self.run(self.master_node_, cmd)
+        return results
 
     def turn_intel_pstate_driver(self, nodes, option, exit_on_err = False):
         """
