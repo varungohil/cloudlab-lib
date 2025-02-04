@@ -243,7 +243,8 @@ class CloudLabAgent:
         Returns:
             tuple: (stdout_lines, stderr_lines, exit_status) from swarm initialization
         """
-        cmd = "sudo docker swarm init --advertise-addr `hostname -i`"
+
+        cmd = f"sudo docker swarm init --advertise-addr 10.0.1.{int(self.master_node_.split('-')[-1]) + 1} --data-path-addr 10.0.1.{int(self.master_node_.split('-')[-1]) + 1}"
         stdout, stderr , exit_status = self.run_on_node(self.master_node_, cmd, exit_on_err=True) 
         worker_join_token = stdout[4].strip()
         print(f"Join token is '{worker_join_token}' ")
@@ -267,7 +268,7 @@ class CloudLabAgent:
         exit_statuses = {}
         for node in nodes:
             print(f"Trying to join node {node} as worker to swarm")
-            stdout, stderr, exit_status = self.run_on_node(node, self.worker_join_token_)
+            stdout, stderr, exit_status = self.run_on_node(node, self.worker_join_token_ + f" --advertise-addr 10.0.1.{int(node.split('-')[-1]) + 1} --data-path-addr 10.0.1.{int(node.split('-')[-1]) + 1}")
             stdouts[node] = stdout
             stderrs[node] = stderr
             exit_statuses[node] = exit_status
