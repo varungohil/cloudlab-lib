@@ -435,17 +435,17 @@ class CloudLabAgent:
         if option not in ["on", "off"]:
             print(f"{option} option not recognized!, Only options 'on' and 'off' are allowed")
             return [],[],-1
-        if power_driver == "intel-pstate":
+        if power_driver == "acpi":
             if option == "on":
-                option = 0
-            else:
                 option = 1
+            else:
+                option = 0
             cmd = f"sudo sh -c 'echo {option} >  /sys/devices/system/cpu/cpufreq/boost'"
-        elif power_driver == "acpi":
+        elif power_driver == "intel-pstate":
             if option == "on":
-                option = 1
-            else:
                 option = 0
+            else:
+                option = 1
             cmd = f"sudo sh -c 'echo {option} >  /sys/devices/system/cpu/intel_pstate/no_turbo'"
 
         return self.run(nodes, cmd, exit_on_err)
