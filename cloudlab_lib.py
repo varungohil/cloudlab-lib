@@ -518,6 +518,7 @@ class CloudLabAgent:
                 "timeout": "5s",        # Request timeout
                 "script": "script.lua",  # Lua script path
                 "url": "http://localhost:8080", # Target URL
+                "ulimit" : 65536
                 "extra_params": ""       # Additional parameters
             }
             
@@ -526,7 +527,7 @@ class CloudLabAgent:
         """
         if wrk_path == "default":
             wrk_path = f"/home/{self.account_username_}/DeathStarBench/wrk2"
-        cmd = f"{wrk_path}/wrk -D {wrk_params['dist']} -t {wrk_params['threads']} -c {wrk_params['connections']} -d{wrk_params['duration']} -R{wrk_params['rate']} -T{wrk_params['timeout']} -s {wrk_path}/{wrk_params['script']} {wrk_params['url']} {wrk_params['extra_params']}" 
+        cmd = f"ulimit -n {wrk_params['ulimit']} && {wrk_path}/wrk -D {wrk_params['dist']} -t {wrk_params['threads']} -c {wrk_params['connections']} -d{wrk_params['duration']} -R{wrk_params['rate']} -T{wrk_params['timeout']} -s {wrk_path}/{wrk_params['script']} {wrk_params['url']} {wrk_params['extra_params']}" 
         print(cmd)
         return self.run_on_node(node, cmd, exit_on_err)
     
