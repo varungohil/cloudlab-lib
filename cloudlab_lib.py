@@ -420,6 +420,36 @@ class CloudLabAgent:
         cmd = f"sudo cpupower -c {cpus} frequency-set -f {frequency}"
         return self.run(nodes ,cmd, exit_on_err)
 
+    def turn_turboboost(self, nodes, option, power_driver, exit_on_err = False):
+        """
+        Enable or disable turboboost on the specified node.
+        
+        Args:
+            node (str): Node identifier to configure turboboost
+            option (str): 'on' to enable turboboost, 'off' to disable it
+            exit_on_err (bool): Whether to exit program if command fails
+            
+        Returns:
+            Dictionary of (stdouts, stderrs, exit_statuses) keyed by node
+        """
+        if option not in ["on", "off"]:
+            print(f"{option} option not recognized!, Only options 'on' and 'off' are allowed")
+            return [],[],-1
+        if power_driver == "intel-pstate":
+            if option == "on":
+                option = 0
+            else:
+                option = 1
+            cmd = f"sudo sh -c 'echo {option} >  /sys/devices/system/cpu/cpufreq/boost'"
+        elif power_driver == "acpi":
+            if option == "on":
+                option = 1
+            else:
+                option = 0
+            cmd = f"sudo sh -c 'echo {option} >  /sys/devices/system/cpu/intel_pstate/no_turbo'"
+
+        return self.run(nodes, cmd, exit_on_err)
+
     def setup_deathstarbench(self, nodes, user, location="~", branch="main", commit="", exit_on_err = False):
         """
         Sets up DeathStarBench benchmark suite on specified node.
